@@ -3,6 +3,7 @@ package ninja.trek.Components;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
 
 import ninja.trek.Main;
@@ -31,7 +32,8 @@ public class PhysicsC extends Component{
     @Override
     public void onAdded(Main main) {
         body = main.world.createBody(bodyD);
-        body.createFixture(fd);
+        Fixture fx = body.createFixture(fd);
+
         Gdx.app.log("phys", "added");
     }
 

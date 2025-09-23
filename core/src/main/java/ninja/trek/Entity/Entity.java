@@ -5,6 +5,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.reflect.ClassReflection;
 import com.badlogic.gdx.utils.reflect.Constructor;
 import com.badlogic.gdx.utils.reflect.Field;
+import com.badlogic.gdx.utils.reflect.Annotation;
 import com.badlogic.gdx.utils.reflect.ReflectionException;
 
 import ninja.trek.Components.Component;
@@ -83,6 +84,11 @@ public class Entity {
                         throw new RuntimeException("Multiple component matches for field '" + cf.getName() + "' of " + comp.getClass().getName() + " (type " + fType.getName() + ")");
                     }
                     if (matchCount == 0){
+                        if (isOptional(cf)) {
+                            // Leave null and continue
+                            Gdx.app.log("entity", "optional missing: " + comp.getClass().getSimpleName() + "." + cf.getName());
+                            continue;
+                        }
                         throw new RuntimeException("No component match for field '" + cf.getName() + "' of " + comp.getClass().getName() + " (type " + fType.getName() + ")");
                     }
                     if (matchCount == 1 && match != null){
@@ -116,6 +122,11 @@ public class Entity {
                         throw new RuntimeException("Multiple component matches for field '" + cf.getName() + "' of " + comp.getClass().getName() + " (type " + fType.getName() + ")");
                     }
                     if (matchCount == 0){
+                        if (isOptional(cf)) {
+                            // Leave null and continue
+                            Gdx.app.log("entity", "optional missing: " + comp.getClass().getSimpleName() + "." + cf.getName());
+                            continue;
+                        }
                         throw new RuntimeException("No component match for field '" + cf.getName() + "' of " + comp.getClass().getName() + " (type " + fType.getName() + ")");
                     }
                     if (matchCount == 1 && match != null){
@@ -128,6 +139,22 @@ public class Entity {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private boolean isOptional(Field field) {
+        try {
+            Annotation[] annotations = field.getDeclaredAnnotations();
+            if (annotations == null) return false;
+            for (Annotation a : annotations) {
+                Class<?> at = a.getAnnotationType();
+                if (at != null && "ninja.trek.Components.OptionalComponent".equals(at.getName())) {
+                    return true;
+                }
+            }
+        } catch (Throwable t) {
+            // Be conservative if reflection API differs; treat as not optional
+        }
+        return false;
     }
     public <CL extends Component> CL get(Class<CL> cl){
         for (int i = 0; i < components.size; i++){
