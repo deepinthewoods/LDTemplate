@@ -4,7 +4,7 @@ import ninja.trek.Main;
 import ninja.trek.actionlist.ActionList;
 
 public class ActionListC extends Component{
-    ActionList actions = new ActionList();
+    public ActionList actions = new ActionList();
 
 
     @Override
@@ -26,4 +26,8 @@ public class ActionListC extends Component{
     public void onRemove(Main main) {
         actions.clearWithDelayed();
     }
+
+    // Convenience: allow game code to schedule actions
+    public void addToStart(ninja.trek.actionlist.Action a){ actions.addToStart(a); a.parent = actions; }
+    public void addToEnd(ninja.trek.actionlist.Action a){ actions.addToEnd(a); a.parent = actions; }
 }

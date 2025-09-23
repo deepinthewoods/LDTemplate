@@ -71,6 +71,13 @@ public class Main extends ApplicationAdapter {
         Player player = add(Player.class);
         player.x = 3;
         player.y = 3;
+
+        // Add a separate camera entity that follows the player
+        ninja.trek.Entity.CameraEntity camEnt = add(ninja.trek.Entity.CameraEntity.class);
+        // Schedule follow action
+        ninja.trek.actionlist.CameraFollowAction follow = new ninja.trek.actionlist.CameraFollowAction();
+        follow.target = player;
+        camEnt.get(ninja.trek.Components.ActionListC.class).addToEnd(follow);
     }
 
     @Override
@@ -159,5 +166,9 @@ public class Main extends ApplicationAdapter {
     }
     public void cancelCutScene(){
         this.cutScene = null;
+    }
+
+    public Array<Entity> getEntities(){
+        return entities;
     }
 }
