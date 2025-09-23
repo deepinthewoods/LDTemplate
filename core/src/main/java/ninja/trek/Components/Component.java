@@ -13,4 +13,7 @@ public abstract class Component {
 
 
     public abstract void onRemove(Main main);
+
+    // Optional pre-render hook for background/ground layers before SpriteBatch begins
+    public void preRender(float dt, Main main) {}
 }

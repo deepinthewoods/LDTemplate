@@ -6,6 +6,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
@@ -41,7 +42,8 @@ public class Main extends ApplicationAdapter {
     public TextureAtlas atlas;
     private Skin skin;
     private boolean release = false;
-    private OrthographicCamera camera;
+    public OrthographicCamera camera;
+    public ShapeRenderer shapeRenderer;
     private float accumulator, t;
     private float dt = 0.01f;
 
@@ -61,6 +63,10 @@ public class Main extends ApplicationAdapter {
         world.setContactListener(contactListener);
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 20, 20);
+        shapeRenderer = new ShapeRenderer();
+
+        // Add background first so its preRender runs before others
+        add(ninja.trek.Entity.Background.class);
 
         Player player = add(Player.class);
         player.x = 3;
@@ -98,8 +104,16 @@ public class Main extends ApplicationAdapter {
             t += dt;
         }
 
-        camera.position.set(0f, 0f,  0f);
+        // camera updated by CameraC (if attached to an entity)
+        // fallback: ensure camera has a sane default transform
+        camera.position.set(camera.position.x, camera.position.y,  0f);
         camera.update();
+
+        // Pre-render pass (e.g., parallax background) before SpriteBatch
+        for (int i = 0; i < entities.size; i++){
+            Entity e = entities.get(i);
+            e.preRender(deltaTime, this);
+        }
 
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
@@ -123,6 +137,7 @@ public class Main extends ApplicationAdapter {
         VisUI.dispose();
         atlas.dispose();
         stage.dispose();
+        if (shapeRenderer != null) shapeRenderer.dispose();
     }
 
     public <T extends Entity> T add(Class<T> cl) {

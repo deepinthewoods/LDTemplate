@@ -38,6 +38,7 @@ public class OSPhysicsC extends Component {
         // Mirror the two-phase integration from the old Physics2dSystem
         wasOnGround2 = wasOnGround;
         wasOnGround = onGround;
+        onGround = false; // will be set by collision resolution if supported this frame
 
         // Horizontal step
         stepX(dt);
@@ -111,4 +112,3 @@ public class OSPhysicsC extends Component {
         }
     }
 }
-

@@ -179,6 +179,13 @@ public class Entity {
         }
     }
 
+    public void preRender(float dt, Main main){
+        for (int i = 0; i < components.size; i++){
+            Component c = components.get(i);
+            c.preRender(dt, main);
+        }
+    }
+
     public void onAdded(Main main){
         for (int i = 0; i < components.size; i++){
             Component c = components.get(i);
