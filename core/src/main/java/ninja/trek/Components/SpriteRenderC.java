@@ -8,6 +8,7 @@ import ninja.trek.Main;
 public class SpriteRenderC extends Component{
     private String name;
     private Sprite sprite;
+    public int renderLayer = 5; // default mid layer
 
     public SpriteRenderC(String name){
         this.name = name;
@@ -29,10 +30,11 @@ public class SpriteRenderC extends Component{
     @Override
     public void onAdded(Main main) {
         sprite = main.atlas.createSprite(name);
+        main.registerRenderEntity(e, renderLayer);
     }
 
     @Override
     public void onRemove(Main main) {
-
+        main.unregisterRenderEntity(e, renderLayer);
     }
 }

@@ -1,0 +1,289 @@
+Spec: Generated Time Codecs (No Reflection)
+Goal
+
+Generate zero-allocation, zero-reflection TimeCodec<T> classes at compile time for snapshotting and restoring gameplay state used by a rewind system (120 Hz sim, keyframe every 8 frames, interpolate while rewinding, resim on exit).
+
+Runtime API (hand-written)
+
+Package: timecode.runtime
+
+// ===== Annotations =====
+package timecode.runtime;
+import java.lang.annotation.*;
+
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface TimeSerializable { int typeId(); }
+
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.FIELD)
+public @interface TimeField {
+  int quantize() default 0;      // fixed-point decimals: 0=raw float
+  boolean keyframeOnly() default false;
+}
+
+// Optional: entity identity inside snapshots
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.FIELD)
+public @interface TimeId {}
+
+// ===== Codec interface =====
+package timecode.runtime;
+import java.nio.ByteBuffer;
+
+public interface TimeCodec<T> {
+  short typeId();
+  void write(T obj, ByteBuffer out);
+  void read(T obj, ByteBuffer in);
+}
+
+// ===== Registry loaded at startup (generated implementation wires into this) =====
+package timecode.runtime;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+
+public final class TimeCodecRegistry {
+  private final Int2ObjectOpenHashMap<TimeCodec<?>> byType = new Int2ObjectOpenHashMap<>();
+  public void register(TimeCodec<?> c) { byType.put(c.typeId(), c); }
+  @SuppressWarnings("unchecked")
+  public <T> TimeCodec<T> get(short typeId) { return (TimeCodec<T>) byType.get(typeId); }
+}
+
+Snapshot Binary Format (per keyframe)
+[int frameIndex][long rngState][int entityCount]
+  repeating entityCount times:
+    [int entityId]
+    [short componentCount]
+      repeating componentCount times:
+        [short typeId]
+        [short byteSize]          // payload size of this component
+        [component payload bytes] // field-packed in a fixed order
+
+
+Field packing (supported types):
+
+int -> putInt/getInt
+
+short -> putShort/getShort
+
+long -> putLong/getLong
+
+boolean -> put((byte)(b?1:0))/get()!=0
+
+float, quantize=0 -> putFloat/getFloat
+
+float, quantize=q -> fixed-point: putInt(round(f*10^q)) / getInt()/10^q
+
+double -> putDouble/getDouble (optional)
+
+Small fixed arrays float[2|3|4], int[2|3|4] (unrolled)
+
+Custom value types allowed only if they’re @TimeSerializable (codec chaining)
+
+Field order: lexical by field name in the declaring class (stable ABI).
+
+Build Setup
+
+Module: timecode-processor (annotation processor), timecode-runtime (above API), and your game module.
+
+timecode-processor depends on auto-service to register the processor.
+
+Gradle (snippets):
+
+// timecode-runtime
+plugins { id 'java-library' }
+java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
+
+// timecode-processor
+plugins { id 'java-library' }
+dependencies {
+  implementation project(':timecode-runtime')
+  implementation 'com.google.auto.service:auto-service:1.1.1'
+  annotationProcessor 'com.google.auto.service:auto-service:1.1.1'
+}
+
+
+In game/build.gradle:
+
+dependencies {
+  implementation project(':timecode-runtime')
+  annotationProcessor project(':timecode-processor')
+}
+
+Annotation Processor Requirements (generated code only, no reflection)
+
+Package: timecode.processor
+
+Scan all @TimeSerializable classes.
+
+Validate:
+
+typeId unique across classes.
+
+Only supported field types or nested @TimeSerializable.
+
+Fields are accessible (public) or generate accessor stubs (choose one; simplest is require public).
+
+Sort fields lexically by name.
+
+Emit one codec per class: <QualifiedClassName>Codec in the same package as the target class.
+
+Emit a single registry bootstrapper:
+
+Class: timecode.generated.GeneratedTimeCodecs
+
+Method: public static void registerAll(TimeCodecRegistry r)
+
+It news each generated codec and calls r.register(codec).
+
+Generated Codec Template
+// package matches target class package
+public final class {SimpleName}Codec implements timecode.runtime.TimeCodec<{QualifiedName}> {
+  public short typeId() { return (short){TYPE_ID}; }
+
+  public void write({QualifiedName} obj, java.nio.ByteBuffer out) {
+    // For each @TimeField in lexical order:
+    //   switch (type, quantize) { emit code }
+    // For nested @TimeSerializable fields:
+    //   if (obj.nested != null) {
+    //     out.put((byte)1);
+    //     new NestedTypeCodec().write(obj.nested, out); // or call registry if already available
+    //   } else out.put((byte)0);
+  }
+
+  public void read({QualifiedName} obj, java.nio.ByteBuffer in) {
+    // Mirror write logic
+    // If nested present flag==1, ensure obj.nested != null (construct or call factory) then decode
+  }
+}
+
+Generated Registry
+package timecode.generated;
+import timecode.runtime.TimeCodecRegistry;
+
+public final class GeneratedTimeCodecs {
+  public static void registerAll(TimeCodecRegistry r) {
+    // One line per discovered @TimeSerializable:
+    // r.register(new pkg.TransformCodec());
+    // r.register(new pkg.HealthCodec());
+  }
+}
+
+Usage Pattern in Game Code
+// 1) Define components
+@TimeSerializable(typeId = 1)
+public final class Transform {
+  @TimeField(quantize = 3) public float x, y;
+  @TimeField(quantize = 3) public float vx, vy;
+  @TimeField public float rotation;
+}
+
+@TimeSerializable(typeId = 2)
+public final class Health {
+  @TimeField public int hp;
+}
+
+public final class Entity {
+  @TimeId public int id;
+  public Transform transform;
+  public Health health;
+}
+
+// 2) Initialize registry at startup
+TimeCodecRegistry registry = new TimeCodecRegistry();
+timecode.generated.GeneratedTimeCodecs.registerAll(registry);
+
+// 3) Writing a component into a snapshot
+short typeId = 1; // Transform
+var codec = registry.get(typeId);
+// emit [typeId][size][payload]
+buf.putShort(typeId);
+int sizePos = buf.position(); buf.putShort((short)0);
+int start = buf.position();
+codec.write(entity.transform, buf);
+buf.putShort(sizePos, (short)(buf.position() - start));
+
+// 4) Reading a component from a snapshot
+short readType = buf.getShort();
+short size = buf.getShort();
+var compCodec = registry.get(readType);
+compCodec.read(entity.transform, (ByteBuffer) buf.slice(buf.position(), size).order(buf.order()));
+buf.position(buf.position() + size);
+
+Determinism & Resimulation
+
+At each keyframe store [frameIndex, rngState].
+
+Keep per-frame input log.
+
+On rewind exit at target frame F:
+
+Restore nearest keyframe KF ≤ F.
+
+Deterministically simulate KF+1 … F applying logged input.
+
+All gameplay randomness must source from a seedable RNG whose state is snapshotted at keyframes.
+
+Error Handling (processor)
+
+Duplicate typeId: fail build with a clear message including both class names.
+
+Unsupported field type: fail build with the fully qualified type and field name.
+
+Private fields (if not generating accessors): fail build, suggest adding public or supported accessors.
+
+Array lengths unsupported: only allow fixed-length arrays (2/3/4); else fail with guidance.
+
+Optional Enhancements (nice to have)
+
+Dirty bitmask: generated codecs can write a int mask first; only emit fields whose bit is set (requires comparing against a previous instance—out of scope for pure codec; handled by snapshot writer).
+
+Varints: use zig-zag varint for positive ints (IDs/sizes) to shrink payloads.
+
+Quaternion packing: 16-bit per component + sign bit; normalize on read.
+
+Keyframe-only fields: if keyframeOnly=true, snapshot writer omits them in non-keyframe frames (your writer decides; codec just packs fields).
+
+Acceptance Tests (round-trip)
+
+For each generated codec:
+
+Create random instances, write → read → assert equal within quantization tolerance.
+
+Byte-level golden tests: known object → expected byte array.
+
+ABI stability: re-order fields in source (name change) should change layout → test detects mismatch (intentional).
+
+Example Input → Expected Generated Snippet
+
+Input class:
+
+@TimeSerializable(typeId=10)
+public final class Velocity {
+  @TimeField(quantize=3) public float x;
+  @TimeField(quantize=3) public float y;
+  @TimeField public boolean grounded;
+}
+
+
+Generated write (core lines):
+
+out.putInt(Math.round(obj.x * 1000f));
+out.putInt(Math.round(obj.y * 1000f));
+out.put((byte)(obj.grounded ? 1 : 0));
+
+
+Generated read (core lines):
+
+obj.x = in.getInt() / 1000f;
+obj.y = in.getInt() / 1000f;
+obj.grounded = in.get() != 0;
+
+
+That’s the complete contract. Generate:
+
+codec per @TimeSerializable,
+
+a GeneratedTimeCodecs.registerAll method,
+
+no reflection anywhere.
+The runtime only needs TimeCodecRegistry lookups and ByteBuffer writes/reads.

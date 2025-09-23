@@ -10,6 +10,7 @@ import ninja.trek.Main;
 public class ParallaxBackgroundC extends Component {
     // Configurable fields
     public int layers = 6;
+    public int renderLayer = 0; // background layer
     public float[] parallaxFactors; // horizontal scroll factors per layer (0=far ... near)
     public float[] baseY;           // base vertical offsets per layer
     public float[] amplitude;       // sine amplitude per layer
@@ -171,11 +172,11 @@ public class ParallaxBackgroundC extends Component {
     @Override
     public void onAdded(Main main) {
         ensureArrays();
+        main.registerRenderEntity(e, renderLayer);
     }
 
     @Override
     public void onRemove(Main main) {
-        // No-op
+        main.unregisterRenderEntity(e, renderLayer);
     }
 }
-

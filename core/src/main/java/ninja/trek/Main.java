@@ -33,6 +33,8 @@ public class Main extends ApplicationAdapter {
     public SpriteBatch batch;
     private Texture image;
     private Array<Entity> entities = new Array<Entity>();
+    @SuppressWarnings("unchecked")
+    private Array<Entity>[] renderLayers = (Array<Entity>[]) new Array[10];
     public World world;
     public Box2DDebugRenderer debugR;
     private Vector2 gravity = new Vector2(0, -20);
@@ -45,7 +47,7 @@ public class Main extends ApplicationAdapter {
     public OrthographicCamera camera;
     public ShapeRenderer shapeRenderer;
     private float accumulator, t;
-    private float dt = 0.01f;
+    private float dt = 1f/120f;
 
     @Override
     public void create() {
@@ -64,6 +66,11 @@ public class Main extends ApplicationAdapter {
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 20, 20);
         shapeRenderer = new ShapeRenderer();
+
+        // init render layers
+        for (int i = 0; i < renderLayers.length; i++) {
+            renderLayers[i] = new Array<Entity>();
+        }
 
         // Add background first so its preRender runs before others
         add(ninja.trek.Entity.Background.class);
@@ -116,18 +123,25 @@ public class Main extends ApplicationAdapter {
         camera.position.set(camera.position.x, camera.position.y,  0f);
         camera.update();
 
-        // Pre-render pass (e.g., parallax background) before SpriteBatch
-        for (int i = 0; i < entities.size; i++){
-            Entity e = entities.get(i);
-            e.preRender(deltaTime, this);
+        // Pre-render pass per layer (e.g., parallax/background) before SpriteBatch
+        for (int l = 0; l < renderLayers.length; l++) {
+            Array<Entity> layer = renderLayers[l];
+            for (int i = 0; i < layer.size; i++) {
+                Entity e = layer.get(i);
+                e.preRender(deltaTime, this);
+            }
         }
 
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
-        for (int i = 0; i < entities.size; i++){
-            Entity e = entities.get(i);
-            e.updateRender(deltaTime, this);
+        // Render pass per layer in order
+        for (int l = 0; l < renderLayers.length; l++) {
+            Array<Entity> layer = renderLayers[l];
+            for (int i = 0; i < layer.size; i++) {
+                Entity e = layer.get(i);
+                e.updateRender(deltaTime, this);
+            }
         }
         batch.end();
         if (!release) {
@@ -170,5 +184,20 @@ public class Main extends ApplicationAdapter {
 
     public Array<Entity> getEntities(){
         return entities;
+    }
+
+    public void registerRenderEntity(Entity e, int layer) {
+        if (e == null) return;
+        int li = Math.max(0, Math.min(layer, renderLayers.length - 1));
+        Array<Entity> arr = renderLayers[li];
+        // avoid duplicates
+        for (int i = 0; i < arr.size; i++) if (arr.get(i) == e) return;
+        arr.add(e);
+    }
+
+    public void unregisterRenderEntity(Entity e, int layer) {
+        if (e == null) return;
+        int li = Math.max(0, Math.min(layer, renderLayers.length - 1));
+        renderLayers[li].removeValue(e, true);
     }
 }
