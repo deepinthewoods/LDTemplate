@@ -10,9 +10,13 @@ import com.badlogic.gdx.utils.reflect.ReflectionException;
 
 import ninja.trek.Components.Component;
 import ninja.trek.Main;
+import timecode.runtime.TimeField;
+import timecode.runtime.TimeSerializable;
 
+@TimeSerializable(typeId = 1)
 public class Entity {
-    public float x, y;
+    public int id;
+    @TimeField public float x, y;
     public Array<Component> components = new Array<Component>();
     private boolean hasInit = false;
     public boolean remove = false;

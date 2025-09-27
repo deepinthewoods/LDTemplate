@@ -27,6 +27,7 @@ import com.kotcrab.vis.ui.VisUI;
 
 import ninja.trek.Entity.Entity;
 import ninja.trek.Entity.Player;
+import ninja.trek.time.SnapshotManager;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
@@ -48,6 +49,12 @@ public class Main extends ApplicationAdapter {
     public ShapeRenderer shapeRenderer;
     private float accumulator, t;
     private float dt = 1f/120f;
+    private int frameIndex = 0;
+    private boolean rewinding = false;
+    private SnapshotManager snapshots;
+    private int rewindTargetFrame = 0;
+    private int nextEntityId = 1;
+    private java.util.HashMap<Integer, Class<? extends Entity>> entityClassById = new java.util.HashMap<>();
 
     @Override
     public void create() {
@@ -66,6 +73,8 @@ public class Main extends ApplicationAdapter {
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 20, 20);
         shapeRenderer = new ShapeRenderer();
+
+        snapshots = new SnapshotManager(this);
 
         // init render layers
         for (int i = 0; i < renderLayers.length; i++) {
@@ -97,25 +106,45 @@ public class Main extends ApplicationAdapter {
             return;
         }
 
-        accumulator += deltaTime;
-        while ( accumulator >= dt )
-        {
-            world.step(deltaTime, 2, 2);
-            for (int i = 0; i < entities.size; i++){
-                Entity e = entities.get(i);
-                e.update(dt, this);
-            }
-            for (int i = entities.size-1; i >= 0; i--){
-                Entity e = entities.get(i);
-                if (e.remove){
-                    entities.removeIndex(i);
-                    e.onRemove(this);
-                    e.remove = false;
-                    Pools.free(e);
+        boolean rKey = com.badlogic.gdx.Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.R);
+        if (rKey && !rewinding) {
+            rewinding = true;
+            rewindTargetFrame = Math.max(0, frameIndex);
+        } else if (!rKey && rewinding) {
+            rewinding = false;
+            // On exit, we already restored+resim each frame; nothing extra
+        }
+
+        if (rewinding) {
+            // Step target backwards at sim rate based on deltaTime
+            int steps = Math.max(1, (int)Math.floor(deltaTime / dt));
+            rewindTargetFrame = Math.max(0, rewindTargetFrame - steps);
+            snapshots.restoreAndResimTo(rewindTargetFrame);
+        } else {
+            accumulator += deltaTime;
+            while ( accumulator >= dt )
+            {
+                world.step(dt, 2, 2);
+                for (int i = 0; i < entities.size; i++){
+                    Entity e = entities.get(i);
+                    e.update(dt, this);
                 }
+                for (int i = entities.size-1; i >= 0; i--){
+                    Entity e = entities.get(i);
+                    if (e.remove){
+                        entities.removeIndex(i);
+                        e.onRemove(this);
+                        e.remove = false;
+                        Pools.free(e);
+                    }
+                }
+                if ((frameIndex % 8) == 0) {
+                    snapshots.captureKeyframe(frameIndex);
+                }
+                frameIndex++;
+                accumulator -= dt;
+                t += dt;
             }
-            accumulator -= dt;
-            t += dt;
         }
 
         // camera updated by CameraC (if attached to an entity)
@@ -163,6 +192,8 @@ public class Main extends ApplicationAdapter {
 
     public <T extends Entity> T add(Class<T> cl) {
         T e = Pools.obtain(cl);
+        e.id = nextEntityId++;
+        entityClassById.put(e.id, cl);
         e.init();
         e.onAdded(this);
         entities.add(e);
@@ -184,6 +215,20 @@ public class Main extends ApplicationAdapter {
 
     public Array<Entity> getEntities(){
         return entities;
+    }
+
+    public Class<? extends Entity> getEntityClassById(int id) {
+        return entityClassById.get(id);
+    }
+
+    public <T extends Entity> T createEntityWithId(Class<T> cl, int id) {
+        T e = Pools.obtain(cl);
+        e.id = id;
+        if (!entityClassById.containsKey(id)) entityClassById.put(id, cl);
+        e.init();
+        e.onAdded(this);
+        entities.add(e);
+        return e;
     }
 
     public void registerRenderEntity(Entity e, int layer) {

@@ -12,4 +12,26 @@ dependencies {
   }
   api "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
 
+  // Expose timecode runtime to consumers and IDE
+  api project(":timecode-runtime")
+  annotationProcessor project(":timecode-processor")
+
+}
+
+// Ensure generated sources are compiled and visible to downstream (e.g., GWT html)
+sourceSets {
+  main {
+    java {
+      srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
+    }
+  }
+}
+
+// Help Android Studio/IntelliJ mark generated sources correctly
+idea {
+  module {
+    def genDir = file("$buildDir/generated/sources/annotationProcessor/java/main")
+    sourceDirs += genDir
+    generatedSourceDirs += genDir
+  }
 }

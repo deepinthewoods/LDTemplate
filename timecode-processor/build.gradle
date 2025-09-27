@@ -1,0 +1,19 @@
+plugins {
+  id 'java-library'
+}
+
+java {
+  sourceCompatibility = JavaVersion.toVersion(11)
+  targetCompatibility = JavaVersion.toVersion(11)
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation project(':timecode-runtime')
+  implementation 'com.google.auto.service:auto-service:1.1.1'
+  annotationProcessor 'com.google.auto.service:auto-service:1.1.1'
+}
+

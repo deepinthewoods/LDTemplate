@@ -3,15 +3,19 @@ package ninja.trek.actionlist;
 import com.badlogic.gdx.math.MathUtils;
 
 import ninja.trek.Entity.Entity;
+import timecode.runtime.TimeField;
+import timecode.runtime.TimeSerializable;
 
+@TimeSerializable(typeId = 1000)
 public class CameraFollowAction extends Action {
     public Entity target; // if null, autodetect first Player
+    @TimeField public int targetId; // used for snapshot
 
-    public float speedFactor = 0.03f;           // proportional move
-    public float minMoveSpeed = 18f * 0.0166667f; // ~ 18 * timestep
-    public float verticalClampRange = 8f;       // +/- band around target
+    @TimeField public float speedFactor = 0.03f;           // proportional move
+    @TimeField public float minMoveSpeed = 18f * 0.0166667f; // ~ 18 * timestep
+    @TimeField public float verticalClampRange = 8f;       // +/- band around target
 
-    private float targetY;
+    @TimeField public float targetY;
 
     @Override
     public void update(float dt) {
@@ -58,4 +62,3 @@ public class CameraFollowAction extends Action {
     @Override
     public void onStart() { }
 }
-

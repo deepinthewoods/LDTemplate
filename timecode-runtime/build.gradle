@@ -1,0 +1,16 @@
+plugins {
+  id 'java-library'
+}
+
+java {
+  sourceCompatibility = JavaVersion.toVersion(11)
+  targetCompatibility = JavaVersion.toVersion(11)
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+}
+

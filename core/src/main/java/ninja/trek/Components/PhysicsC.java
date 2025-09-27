@@ -7,12 +7,20 @@ import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
 
 import ninja.trek.Main;
+import timecode.runtime.TimeSerializable;
 
+@TimeSerializable(typeId = 2)
 public class PhysicsC extends Component{
 
     private final BodyDef bodyD;
     private final FixtureDef fd;
     public Body body;
+    // Snapshotted state (full precision, raw floats)
+    @timecode.runtime.TimeField public float posX, posY;
+    @timecode.runtime.TimeField public float angle;
+    @timecode.runtime.TimeField public float velX, velY;
+    @timecode.runtime.TimeField public float angVel;
+    @timecode.runtime.TimeField public boolean awake;
 
     public PhysicsC(BodyDef bodyD, FixtureDef fd){
         this.bodyD = bodyD;
