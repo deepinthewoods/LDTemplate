@@ -1,13 +1,15 @@
 package ninja.trek.Components;
 
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.g2d.Sprite;
-
 import ninja.trek.Main;
+import ninja.trek.g2d.CenteredAtlasSprite;
+import ninja.trek.g2d.CenteredSpriteBatch;
+import com.badlogic.gdx.graphics.g2d.Animation;
 
 public class SpriteRenderC extends Component{
     private String name;
-    private Sprite sprite;
+    private CenteredAtlasSprite sprite;
+    private Animation<CenteredAtlasSprite> anim;
+    private float stateTime = 0f;
     public int renderLayer = 5; // default mid layer
 
     public SpriteRenderC(String name){
@@ -15,21 +17,29 @@ public class SpriteRenderC extends Component{
     }
     @Override
     public void update(float dt, Main main) {
-//        Gdx.app.log("spr", "upd");
+        stateTime += dt;
     }
 
     @Override
     public void updateRender(float dt, Main main) {
-        sprite.setPosition(e.x-5f, e.y-5f);
-        sprite.setSize(10f, 10f);
+        CenteredAtlasSprite toDraw;
+        if (anim != null) {
+            toDraw = anim.getKeyFrame(stateTime, true);
+        } else {
+            toDraw = sprite;
+        }
+        if (toDraw == null) return;
+        toDraw.setCenter(e.x, e.y);
+        // size already set to original in assets; override here if you want a world scale
 
-        sprite.draw(main.batch);
-//        Gdx.app.log("spr", "draw2");
+        CenteredSpriteBatch b = main.assets.textureToBatch.get(toDraw.getTexture());
+        if (b != null) toDraw.draw(b);
     }
 
     @Override
     public void onAdded(Main main) {
-        sprite = main.atlas.createSprite(name);
+        anim = main.assets.getAnimation(name);
+        if (anim == null) sprite = main.assets.getSprite(name);
         main.registerRenderEntity(e, renderLayer);
     }
 

@@ -31,7 +31,7 @@ import ninja.trek.time.SnapshotManager;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
-    public SpriteBatch batch;
+    public SpriteBatch batch; // kept for cutscenes/UI
     private Texture image;
     private Array<Entity> entities = new Array<Entity>();
     @SuppressWarnings("unchecked")
@@ -43,6 +43,7 @@ public class Main extends ApplicationAdapter {
     public CutScene cutScene = null;
     private Stage stage;
     public TextureAtlas atlas;
+    public ninja.trek.g2d.Assets assets;
     private Skin skin;
     private boolean release = false;
     public OrthographicCamera camera;
@@ -63,7 +64,8 @@ public class Main extends ApplicationAdapter {
 
         Gdx.app.log("main", "create");
         stage = new Stage();
-        atlas = new TextureAtlas(Gdx.files.internal("pack.atlas"));
+        assets = new ninja.trek.g2d.Assets("pack.atlas");
+        atlas = assets.atlas;
         VisUI.load();
         skin = VisUI.getSkin();
         world = new World(gravity, true);
@@ -80,6 +82,8 @@ public class Main extends ApplicationAdapter {
         for (int i = 0; i < renderLayers.length; i++) {
             renderLayers[i] = new Array<Entity>();
         }
+
+        // Batches are built by assets
 
         // Add background first so its preRender runs before others
         add(ninja.trek.Entity.Background.class);
@@ -161,8 +165,12 @@ public class Main extends ApplicationAdapter {
             }
         }
 
-        batch.setProjectionMatrix(camera.combined);
-        batch.begin();
+        // Start all centered batches
+        for (int i = 0; i < assets.batches.size; i++) {
+            ninja.trek.g2d.CenteredSpriteBatch cb = assets.batches.get(i);
+            cb.setProjectionMatrix(camera.combined);
+            cb.start();
+        }
 
         // Render pass per layer in order
         for (int l = 0; l < renderLayers.length; l++) {
@@ -172,7 +180,10 @@ public class Main extends ApplicationAdapter {
                 e.updateRender(deltaTime, this);
             }
         }
-        batch.end();
+        // End all centered batches (issue GL calls now)
+        for (int i = 0; i < assets.batches.size; i++) {
+            assets.batches.get(i).end();
+        }
         if (!release) {
             debugR.render(world, camera.combined);
         }
@@ -187,6 +198,7 @@ public class Main extends ApplicationAdapter {
         VisUI.dispose();
         atlas.dispose();
         stage.dispose();
+        for (int i = 0; i < assets.batches.size; i++) assets.batches.get(i).dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
     }
 
