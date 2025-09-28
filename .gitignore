@@ -155,6 +155,9 @@ Thumbs.db
 *#*#
 /assets/assets.txt
 /assets/
+/blender/temp/
+/blender/processedSprites/
+/blender/sprites/
 
 ## Special cases:
 
