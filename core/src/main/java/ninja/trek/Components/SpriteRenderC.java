@@ -1,45 +1,36 @@
 package ninja.trek.Components;
 
+import com.badlogic.gdx.graphics.Texture;
 import ninja.trek.Main;
-import ninja.trek.g2d.CenteredAtlasSprite;
 import ninja.trek.g2d.CenteredSpriteBatch;
-import com.badlogic.gdx.graphics.g2d.Animation;
 
+// Static sprite renderer using handle-based lookup; no stored Sprite objects.
 public class SpriteRenderC extends Component{
     private String name;
-    private CenteredAtlasSprite sprite;
-    private Animation<CenteredAtlasSprite> anim;
-    private float stateTime = 0f;
+    public int handle = -1; // 1-frame clip handle
     public int renderLayer = 5; // default mid layer
 
-    public SpriteRenderC(String name){
-        this.name = name;
-    }
+    public SpriteRenderC() {}
+    public SpriteRenderC(String name){ this.name = name; }
+
     @Override
-    public void update(float dt, Main main) {
-        stateTime += dt;
-    }
+    public void update(float dt, Main main) { }
 
     @Override
     public void updateRender(float dt, Main main) {
-        CenteredAtlasSprite toDraw;
-        if (anim != null) {
-            toDraw = anim.getKeyFrame(stateTime, true);
-        } else {
-            toDraw = sprite;
-        }
-        if (toDraw == null) return;
-        toDraw.setCenter(e.x, e.y);
-        // size already set to original in assets; override here if you want a world scale
+        if (handle < 0 && name != null) handle = main.assets.handle(name);
+        if (handle < 0) return;
 
-        CenteredSpriteBatch b = main.assets.textureToBatch.get(toDraw.getTexture());
-        if (b != null) toDraw.draw(b);
+        // Always draw frame 0, original pixel size, centered at entity position
+        Texture tex = main.assets.frameRegion(handle, 0).getTexture();
+        CenteredSpriteBatch b = main.assets.textureToBatch.get(tex);
+        if (b == null) return;
+        main.assets.drawFrameOriginalCentered(handle, 0, b, e.x, e.y, 0f);
     }
 
     @Override
     public void onAdded(Main main) {
-        anim = main.assets.getAnimation(name);
-        if (anim == null) sprite = main.assets.getSprite(name);
+        if (handle < 0 && name != null) handle = main.assets.handle(name);
         main.registerRenderEntity(e, renderLayer);
     }
 

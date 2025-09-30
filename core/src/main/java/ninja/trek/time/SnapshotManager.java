@@ -22,6 +22,7 @@ public final class SnapshotManager {
     private static final int MAX_KEYFRAMES = (MAX_SECONDS * SIM_RATE) / KEYFRAME_STRIDE;
 
     private static final short TYPEID_ACTIONLISTC = (short)3000; // manual codec id for ActionListC
+    private static final short TYPEID_SPRITEANIMC = (short)3001; // manual codec id for SpriteAnimationC
 
     private final Main main;
     private final TimeCodecRegistry registry = new TimeCodecRegistry();
@@ -106,6 +107,9 @@ public final class SnapshotManager {
             // 3) ActionListC via manual codec (generic, uses registry for actions)
             ActionListC ac = e.get(ActionListC.class);
             if (ac != null) comps.add(new ComponentWriter(TYPEID_ACTIONLISTC, (objOut) -> new ActionListCCodec(registry).write(ac, objOut)));
+            // 4) SpriteAnimationC minimal state for rewind (handle/startFrame/offset/layer)
+            ninja.trek.Components.SpriteAnimationC sac = e.get(ninja.trek.Components.SpriteAnimationC.class);
+            if (sac != null) comps.add(new ComponentWriter(TYPEID_SPRITEANIMC, (objOut) -> new SpriteAnimationCCodec().write(sac, objOut)));
 
             // Entity header
             gb.ensure(4 + 2);
@@ -219,10 +223,16 @@ public final class SnapshotManager {
                     continue;
                 }
                 TimeCodec<?> codec = registry.get(typeId);
-                if (codec == null) { in.position(in.position()); continue; }
+                if (codec == null && typeId != TYPEID_ACTIONLISTC && typeId != TYPEID_SPRITEANIMC) { in.position(in.position()); continue; }
                 Class<?> target = codec.type();
                 try {
-                    if (Entity.class.isAssignableFrom(target)) {
+                    if (typeId == TYPEID_ACTIONLISTC) {
+                        ActionListC obj = e.get(ActionListC.class);
+                        if (obj != null) new ActionListCCodec(registry).read(obj, slice);
+                    } else if (typeId == TYPEID_SPRITEANIMC) {
+                        ninja.trek.Components.SpriteAnimationC obj = e.get(ninja.trek.Components.SpriteAnimationC.class);
+                        if (obj != null) new SpriteAnimationCCodec().read(obj, slice);
+                    } else if (Entity.class.isAssignableFrom(target)) {
                         @SuppressWarnings("unchecked")
                         TimeCodec<Entity> ec = (TimeCodec<Entity>) codec;
                         ec.read(e, slice);
@@ -329,5 +339,23 @@ public final class SnapshotManager {
             return c;
         }
         
+    }
+
+    // Manual codec for SpriteAnimationC (minimal fields)
+    private static final class SpriteAnimationCCodec implements timecode.runtime.TimeCodec<ninja.trek.Components.SpriteAnimationC> {
+        @Override public short typeId() { return TYPEID_SPRITEANIMC; }
+        @Override public Class<ninja.trek.Components.SpriteAnimationC> type() { return ninja.trek.Components.SpriteAnimationC.class; }
+        @Override public void write(ninja.trek.Components.SpriteAnimationC obj, java.nio.ByteBuffer out) {
+            out.putInt(obj.handle);
+            out.putInt(obj.startFrame);
+            out.putInt(obj.frameOffsetFrames);
+            out.putInt(obj.renderLayer);
+        }
+        @Override public void read(ninja.trek.Components.SpriteAnimationC obj, java.nio.ByteBuffer in) {
+            obj.handle = in.getInt();
+            obj.startFrame = in.getInt();
+            obj.frameOffsetFrames = in.getInt();
+            obj.renderLayer = in.getInt();
+        }
     }
 }

@@ -257,4 +257,6 @@ public class Main extends ApplicationAdapter {
         int li = Math.max(0, Math.min(layer, renderLayers.length - 1));
         renderLayers[li].removeValue(e, true);
     }
+
+    public int getFrameIndex() { return frameIndex; }
 }
