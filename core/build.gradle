@@ -7,6 +7,8 @@ dependencies {
   api "com.github.tommyettinger:libgdx-utils:$utilsVersion"
   api "org.mini2Dx:universal-tween-engine:$universalTweenVersion"
   api "com.kotcrab.vis:vis-ui:$visuiVersion"
+  // gdx-miniaudio core API
+  api "games.rednblack.miniaudio:miniaudio:$miniaudioVersion"
   if(enableGraalNative == 'true') {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
   }

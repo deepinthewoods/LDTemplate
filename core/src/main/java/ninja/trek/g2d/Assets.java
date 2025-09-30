@@ -19,6 +19,8 @@ import java.util.Map;
 
 /** Manages loading TextureAtlas and building CenteredSprites and Animations. */
 public class Assets {
+    // Pixels Per Meter for world scaling
+    public static final float PPM = 16f;
     public final TextureAtlas atlas;
     public final ObjectMap<Texture, CenteredSpriteBatch> textureToBatch = new ObjectMap<>();
     public final Array<CenteredSpriteBatch> batches = new Array<>();
@@ -104,7 +106,7 @@ public class Assets {
                 TextureAtlas.AtlasRegion ar = atlas.findRegion(name);
                 if (ar != null) {
                     CenteredAtlasSprite cs = new CenteredAtlasSprite(ar);
-                    cs.setSize(ar.originalWidth, ar.originalHeight);
+                    cs.setSize(ar.originalWidth / PPM, ar.originalHeight / PPM);
                     cs.setCenter(0, 0);
                     sprites.put(name, cs);
 
@@ -120,7 +122,7 @@ public class Assets {
                     TextureAtlas.AtlasRegion ar = atlas.findRegion(name, idx);
                     if (ar == null) continue;
                     CenteredAtlasSprite cs = new CenteredAtlasSprite(ar);
-                    cs.setSize(ar.originalWidth, ar.originalHeight);
+                    cs.setSize(ar.originalWidth / PPM, ar.originalHeight / PPM);
                     cs.setCenter(0, 0);
                     frames.add(cs);
                     framesRegions.add(ar);
@@ -178,10 +180,12 @@ public class Assets {
                                           float cx, float cy, float rotationDegrees) {
         TextureAtlas.AtlasRegion region = frameRegion(handle, frameIndex);
         if (region == null) return;
-        float width = region.originalWidth;
-        float height = region.originalHeight;
+        // Scale to world units: meters via PPM
+        float width = region.originalWidth / PPM;
+        float height = region.originalHeight / PPM;
 
-        float sx = 1f, sy = 1f;
+        // Scale ratios relative to original pixel size
+        float sx = 1f / PPM, sy = 1f / PPM;
         float packedW = region.getRotatedPackedWidth();
         float packedH = region.getRotatedPackedHeight();
         float drawW = packedW * sx;

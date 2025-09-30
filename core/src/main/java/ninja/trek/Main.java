@@ -44,6 +44,8 @@ public class Main extends ApplicationAdapter {
     private Stage stage;
     public TextureAtlas atlas;
     public ninja.trek.g2d.Assets assets;
+    public ninja.trek.audio.AudioConductor audio;
+    private Object androidAssets; // injected from AndroidLauncher
     private Skin skin;
     private boolean release = false;
     public OrthographicCamera camera;
@@ -66,6 +68,9 @@ public class Main extends ApplicationAdapter {
         stage = new Stage();
         assets = new ninja.trek.g2d.Assets("pack.atlas");
         atlas = assets.atlas;
+        audio = new ninja.trek.audio.AudioConductor();
+        if (androidAssets != null) audio.setupAndroid(androidAssets);
+        setupSampleAudio();
         VisUI.load();
         skin = VisUI.getSkin();
         world = new World(gravity, true);
@@ -184,6 +189,7 @@ public class Main extends ApplicationAdapter {
         for (int i = 0; i < assets.batches.size; i++) {
             assets.batches.get(i).end();
         }
+        if (audio != null) audio.update(deltaTime);
         if (!release) {
             debugR.render(world, camera.combined);
         }
@@ -200,6 +206,7 @@ public class Main extends ApplicationAdapter {
         stage.dispose();
         for (int i = 0; i < assets.batches.size; i++) assets.batches.get(i).dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
+        if (audio != null) audio.dispose();
     }
 
     public <T extends Entity> T add(Class<T> cl) {
@@ -259,4 +266,31 @@ public class Main extends ApplicationAdapter {
     }
 
     public int getFrameIndex() { return frameIndex; }
+
+    // Android injection point, called before create() when running on Android
+    public void setAndroidAssets(Object assets) { this.androidAssets = assets; }
+
+    private void setupSampleAudio() {
+        if (audio == null) return;
+        ninja.trek.audio.SoundTrack t = audio.createTrack("default");
+        // Example stems (only added if present)
+        String[] stems = new String[] { "audio/drums.wav", "audio/bass.wav", "audio/pad.wav" };
+        boolean any = false;
+        for (String path : stems) {
+            if (com.badlogic.gdx.Gdx.files.internal(path).exists()) {
+                String layer = new java.io.File(path).getName();
+                int dot = layer.lastIndexOf('.'); if (dot >= 0) layer = layer.substring(0, dot);
+                t.addStem(layer, path, any ? 0f : 1f); // first stem at vol 1, others muted
+                if (!any) t.setClockLayer(layer);
+                any = true;
+            }
+        }
+        // Register a sample SFX if present
+        String sfx = "audio/hit.wav";
+        if (com.badlogic.gdx.Gdx.files.internal(sfx).exists()) {
+            audio.registerSfx("hit", sfx, 8);
+        }
+        t.setStepsPerLoop(16);
+        if (any) t.start();
+    }
 }

@@ -46,6 +46,13 @@
 # You will probably need this line in most cases:
 -keep public class com.badlogic.gdx.graphics.Color { *; }
 
+# gdx-miniaudio JNI callbacks
+-keepclassmembers class games.rednblack.miniaudio.MiniAudio {
+    public void on_native_sound_end(long);
+    public void on_native_log(int, java.lang.String);
+    public void on_native_notification(int);
+}
+
 # These two lines are used with mapping files; see https://developer.android.com/build/shrink-code#retracing
 -keepattributes LineNumberTable,SourceFile
 -renamesourcefileattribute SourceFile

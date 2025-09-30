@@ -13,6 +13,9 @@ public class AndroidLauncher extends AndroidApplication {
         super.onCreate(savedInstanceState);
         AndroidApplicationConfiguration configuration = new AndroidApplicationConfiguration();
         configuration.useImmersiveMode = true; // Recommended, but not required.
-        initialize(new Main(), configuration);
+        Main app = new Main();
+        // inject Android AssetManager for gdx-miniaudio setup in core
+        app.setAndroidAssets(getAssets());
+        initialize(app, configuration);
     }
 }
